@@ -1,4 +1,4 @@
-// Archivo actualizado para manejar perfil e inicio y nuevas funcionalidades
+// Archivo actualizado para manejar perfil e inicio, subir fotos, y nuevas funcionalidades
 
 // Importación de módulos necesarios
 const express = require('express');
@@ -7,6 +7,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const multer = require('multer');
+const path = require('path');
 
 // Inicialización
 const app = express();
@@ -15,6 +17,29 @@ const PORT = process.env.PORT || 3000; // Puerto dinámico para Render
 // Middleware
 app.use(bodyParser.json());
 app.use(cors());
+
+// Configuración de almacenamiento local para Multer
+const storage = multer.diskStorage({
+    destination: 'uploads/', // Carpeta donde se almacenarán las imágenes
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`); // Nombre único para cada archivo
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // Limitar tamaño a 5 MB
+    fileFilter: (req, file, cb) => {
+        const fileTypes = /jpeg|jpg|png/;
+        const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = fileTypes.test(file.mimetype);
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Solo se permiten archivos JPEG, JPG y PNG.'));
+        }
+    }
+});
 
 // Conexión a MongoDB
 const uri = "mongodb+srv://JUANLU:Esjupevies5..@linqrup.x4j10.mongodb.net/linqrup?retryWrites=true&w=majority";
@@ -123,6 +148,29 @@ app.post('/api/login', async (req, res) => {
         res.status(500).send('Error en el inicio de sesión.');
     }
 });
+
+// Ruta para subir foto de perfil
+app.post('/api/upload-photo', upload.single('photo'), async (req, res) => {
+    try {
+        const userId = req.body.userId;
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).send('Usuario no encontrado.');
+        }
+
+        // Guardar la URL de la imagen en el perfil del usuario
+        user.profilePicture = `/uploads/${req.file.filename}`;
+        await user.save();
+
+        res.status(200).json({ message: 'Foto subida exitosamente.', profilePicture: user.profilePicture });
+    } catch (error) {
+        console.error('Error al subir la foto:', error);
+        res.status(500).send('Error al subir la foto.');
+    }
+});
+
+// Servir archivos estáticos desde la carpeta "uploads"
+app.use('/uploads', express.static('uploads'));
 
 // Ruta para crear publicación
 app.post('/api/posts', async (req, res) => {

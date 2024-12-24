@@ -1,3 +1,5 @@
+// Archivo actualizado para manejar perfil e inicio y nuevas funcionalidades
+
 // Importación de módulos necesarios
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -8,7 +10,7 @@ const mongoose = require('mongoose');
 
 // Inicialización
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000; // Puerto dinámico para Render
 
 // Middleware
 app.use(bodyParser.json());
@@ -23,18 +25,24 @@ mongoose.connect(uri, {
     .then(() => console.log("Conexión exitosa a MongoDB"))
     .catch(err => console.error("Error al conectar a MongoDB:", err));
 
-// Modelo de Usuario
+// Modelos
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     bio: { type: String, default: "" },
     profilePicture: { type: String, default: "" },
-    socialLinks: [{ type: String }], // Enlaces a redes sociales
+    socialLinks: [{ type: String }],
+    posts: [
+        {
+            title: String,
+            content: String,
+            createdAt: { type: Date, default: Date.now }
+        }
+    ],
+    qrScans: [String],
+    notifications: [String]
 }, { timestamps: true });
 
-const User = mongoose.model('User', userSchema);
-
-// Modelo de Publicación
 const postSchema = new mongoose.Schema({
     title: { type: String, required: true },
     content: { type: String, required: true },
@@ -43,15 +51,41 @@ const postSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
 });
 
+const User = mongoose.model('User', userSchema);
 const Post = mongoose.model('Post', postSchema);
 
-// Rutas
-app.get('/', (req, res) => {
-    res.send('¡Bienvenido a mi API! Las rutas disponibles son: /register, /login, /profile, /posts.');
+// Ruta para el perfil de usuario
+app.get('/api/perfil', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).send('Token no proporcionado.');
+
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, 'secreto');
+
+        const user = await User.findById(decoded.id).select('-password');
+        if (!user) return res.status(404).send('Usuario no encontrado.');
+
+        res.status(200).json(user);
+    } catch (error) {
+        console.error("Error al cargar el perfil:", error);
+        res.status(500).send('Error al cargar el perfil.');
+    }
 });
 
-// Registro de usuario
-app.post('/register', async (req, res) => {
+// Ruta para la página de inicio
+app.get('/api/inicio', async (req, res) => {
+    try {
+        const posts = await Post.find().populate('author', 'username');
+        res.status(200).json(posts);
+    } catch (error) {
+        console.error("Error al cargar datos de inicio:", error);
+        res.status(500).send('Error al cargar datos de inicio.');
+    }
+});
+
+// Ruta para crear un nuevo usuario (registro)
+app.post('/api/register', async (req, res) => {
     const { username, password, bio, profilePicture, socialLinks } = req.body;
 
     if (!username || !password) {
@@ -72,78 +106,74 @@ app.post('/register', async (req, res) => {
     }
 });
 
-// Inicio de sesión
-app.post('/login', async (req, res) => {
+// Ruta para inicio de sesión
+app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
 
     try {
         const user = await User.findOne({ username });
-        if (!user) {
-            return res.status(404).send('Usuario no encontrado.');
-        }
+        if (!user) return res.status(404).send('Usuario no encontrado.');
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            return res.status(401).send('Contraseña incorrecta.');
-        }
+        if (!isPasswordValid) return res.status(401).send('Contraseña incorrecta.');
 
-        const token = jwt.sign({ username, id: user._id }, 'secreto', { expiresIn: '1h' });
+        const token = jwt.sign({ id: user._id, username: user.username }, 'secreto', { expiresIn: '1h' });
         res.status(200).send({ message: 'Inicio de sesión exitoso.', token });
     } catch (error) {
         res.status(500).send('Error en el inicio de sesión.');
     }
 });
 
-// Perfil de usuario
-app.get('/profile', (req, res) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        return res.status(401).send('Token no proporcionado.');
-    }
-
-    const token = authHeader.split(' ')[1];
+// Ruta para crear publicación
+app.post('/api/posts', async (req, res) => {
+    const { username, title, content } = req.body;
     try {
-        const user = jwt.verify(token, 'secreto');
-        res.status(200).send(`Bienvenido al perfil, ${user.username}.`);
+        const user = await User.findOne({ username });
+        if (!user) return res.status(404).send("Usuario no encontrado");
+
+        user.posts.push({ title, content });
+        await user.save();
+
+        res.status(201).json({ message: "Publicación creada exitosamente" });
     } catch (error) {
-        res.status(401).send('Token inválido.');
+        console.error(error);
+        res.status(500).send("Error al crear publicación");
     }
 });
 
-// Crear publicación
-app.post('/posts', async (req, res) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        return res.status(401).send('Token no proporcionado.');
-    }
-
-    const token = authHeader.split(' ')[1];
+// Ruta para obtener notificaciones
+app.get('/api/notifications', async (req, res) => {
     try {
-        const user = jwt.verify(token, 'secreto');
-        const { title, content } = req.body;
-        if (!title || !content) {
-            return res.status(400).send('Título y contenido son obligatorios.');
-        }
+        const user = await User.findOne({ username: "usuario_demo" }); // Sustituir con autenticación real
+        if (!user) return res.status(404).send("Usuario no encontrado");
 
-        const newPost = new Post({ title, content, author: user.id });
-        await newPost.save();
-        res.status(201).send('Publicación creada con éxito.');
+        res.status(200).json(user.notifications);
     } catch (error) {
-        res.status(500).send('Error al crear la publicación.');
+        console.error(error);
+        res.status(500).send("Error al obtener notificaciones");
     }
 });
 
-// Obtener publicaciones
-app.get('/posts', async (req, res) => {
+// Ruta para estadísticas del usuario
+app.get('/api/statistics', async (req, res) => {
     try {
-        const posts = await Post.find().populate('author', 'username');
-        res.status(200).send(posts);
+        const user = await User.findOne({ username: "usuario_demo" }); // Sustituir con autenticación real
+        if (!user) return res.status(404).send("Usuario no encontrado");
+
+        const stats = {
+            posts: user.posts.length,
+            reactions: 0, // Implementar lógica para reacciones
+            qrScans: user.qrScans.length
+        };
+
+        res.status(200).json(stats);
     } catch (error) {
-        res.status(500).send('Error al obtener publicaciones.');
+        console.error(error);
+        res.status(500).send("Error al obtener estadísticas");
     }
 });
 
 // Iniciar servidor
 app.listen(PORT, () => {
-    console.log(`Servidor iniciado en http://localhost:${PORT}`);
+    console.log(`Servidor iniciado en el puerto ${PORT}`);
 });

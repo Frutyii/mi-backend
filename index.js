@@ -81,18 +81,18 @@ const Post = mongoose.model('Post', postSchema);
 app.get('/api/perfil', async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).send('Token no proporcionado.');
+        if (!authHeader) return res.status(401).json({ error: 'Token no proporcionado.' });
 
         const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, 'secreto');
 
         const user = await User.findById(decoded.id).select('-password');
-        if (!user) return res.status(404).send('Usuario no encontrado.');
+        if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
 
         res.status(200).json(user);
     } catch (error) {
         console.error("Error al cargar el perfil:", error);
-        res.status(500).send('Error al cargar el perfil.');
+        res.status(500).json({ error: 'Error al cargar el perfil.' });
     }
 });
 
@@ -103,7 +103,7 @@ app.get('/api/inicio', async (req, res) => {
         res.status(200).json(posts);
     } catch (error) {
         console.error("Error al cargar datos de inicio:", error);
-        res.status(500).send('Error al cargar datos de inicio.');
+        res.status(500).json({ error: 'Error al cargar datos de inicio.' });
     }
 });
 
@@ -112,19 +112,19 @@ app.post('/api/register', async (req, res) => {
     const { username, password, bio, profilePicture, socialLinks } = req.body;
 
     if (!username || !password) {
-        return res.status(400).send('Faltan datos obligatorios.');
+        return res.status(400).json({ error: 'Faltan datos obligatorios.' });
     }
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = new User({ username, password: hashedPassword, bio, profilePicture, socialLinks });
         await newUser.save();
-        res.status(201).send('Usuario registrado correctamente.');
+        res.status(201).json({ message: 'Usuario registrado correctamente.' });
     } catch (error) {
         if (error.code === 11000) {
-            res.status(400).send('El nombre de usuario ya está en uso.');
+            res.status(400).json({ error: 'El nombre de usuario ya está en uso.' });
         } else {
-            res.status(500).send('Error al registrar usuario.');
+            res.status(500).json({ error: 'Error al registrar usuario.' });
         }
     }
 });
@@ -135,15 +135,15 @@ app.post('/api/login', async (req, res) => {
 
     try {
         const user = await User.findOne({ username });
-        if (!user) return res.status(404).send('Usuario no encontrado.');
+        if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) return res.status(401).send('Contraseña incorrecta.');
+        if (!isPasswordValid) return res.status(401).json({ error: 'Contraseña incorrecta.' });
 
         const token = jwt.sign({ id: user._id, username: user.username }, 'secreto', { expiresIn: '1h' });
-        res.status(200).send({ message: 'Inicio de sesión exitoso.', token });
+        res.status(200).json({ message: 'Inicio de sesión exitoso.', token });
     } catch (error) {
-        res.status(500).send('Error en el inicio de sesión.');
+        res.status(500).json({ error: 'Error en el inicio de sesión.' });
     }
 });
 
@@ -153,7 +153,7 @@ app.post('/api/upload-photo', upload.single('photo'), async (req, res) => {
         const userId = req.body.userId;
         const user = await User.findById(userId);
         if (!user) {
-            return res.status(404).send('Usuario no encontrado.');
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
         }
 
         // Guardar la URL de la imagen en el perfil del usuario
@@ -163,7 +163,7 @@ app.post('/api/upload-photo', upload.single('photo'), async (req, res) => {
         res.status(200).json({ message: 'Foto subida exitosamente.', profilePicture: user.profilePicture });
     } catch (error) {
         console.error('Error al subir la foto:', error);
-        res.status(500).send('Error al subir la foto.');
+        res.status(500).json({ error: 'Error al subir la foto.' });
     }
 });
 
@@ -175,7 +175,7 @@ app.post('/api/posts', async (req, res) => {
     const { username, title, content } = req.body;
     try {
         const user = await User.findOne({ username });
-        if (!user) return res.status(404).send("Usuario no encontrado");
+        if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
         user.posts.push({ title, content });
         await user.save();
@@ -183,7 +183,7 @@ app.post('/api/posts', async (req, res) => {
         res.status(201).json({ message: "Publicación creada exitosamente" });
     } catch (error) {
         console.error(error);
-        res.status(500).send("Error al crear publicación");
+        res.status(500).json({ error: "Error al crear publicación" });
     }
 });
 
@@ -191,12 +191,12 @@ app.post('/api/posts', async (req, res) => {
 app.get('/api/notifications', async (req, res) => {
     try {
         const user = await User.findOne({ username: "usuario_demo" }); // Sustituir con autenticación real
-        if (!user) return res.status(404).send("Usuario no encontrado");
+        if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
         res.status(200).json(user.notifications);
     } catch (error) {
         console.error(error);
-        res.status(500).send("Error al obtener notificaciones");
+        res.status(500).json({ error: "Error al obtener notificaciones" });
     }
 });
 
@@ -204,7 +204,7 @@ app.get('/api/notifications', async (req, res) => {
 app.get('/api/statistics', async (req, res) => {
     try {
         const user = await User.findOne({ username: "usuario_demo" }); // Sustituir con autenticación real
-        if (!user) return res.status(404).send("Usuario no encontrado");
+        if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
         const stats = {
             posts: user.posts.length,
@@ -215,7 +215,7 @@ app.get('/api/statistics', async (req, res) => {
         res.status(200).json(stats);
     } catch (error) {
         console.error(error);
-        res.status(500).send("Error al obtener estadísticas");
+        res.status(500).json({ error: "Error al obtener estadísticas" });
     }
 });
 

@@ -1,5 +1,3 @@
-// Archivo actualizado para manejar perfil e inicio, subir fotos, y nuevas funcionalidades
-
 // Importación de módulos necesarios
 const express = require('express');
 const bodyParser = require('body-parser');

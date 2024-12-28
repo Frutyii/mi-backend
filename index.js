@@ -701,3 +701,5 @@ io.on('connection', (socket) => {
         io.emit('receiveNotification', data);
     });
 });
+// Cierra el bloque principal del archivo
+});

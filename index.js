@@ -52,6 +52,7 @@ const upload = multer({
         const fileTypes = /jpeg|jpg|png/;
         const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
         const mimetype = fileTypes.test(file.mimetype);
+
         if (mimetype && extname) {
             return cb(null, true);
         } else {
@@ -59,6 +60,12 @@ const upload = multer({
         }
     }
 });
+
+const uploadVideo = multer({
+    storage: storage, // Opciones específicas para videos si las necesitas
+    limits: { fileSize: 50 * 1024 * 1024 } // Ejemplo: Limitar a 50 MB para videos
+});
+
 
 // Conexión a MongoDB
 const uri = process.env.MONGODB_URI;

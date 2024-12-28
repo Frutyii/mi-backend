@@ -68,13 +68,19 @@ const uploadVideo = multer({
 
 
 // Conexión a MongoDB
-const uri = process.env.MONGODB_URI;
-mongoose.connect(uri, {
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
+// Cargar las variables de entorno desde el archivo .env
+require('dotenv').config();
+
+// Verificar que la variable de entorno se cargó correctamente
+console.log('MongoDB URI:', process.env.MONGODB_URI);
+
+// Conexión a MongoDB
+mongoose.connect(process.env.MONGODB_URI, {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
 })
-    .then(() => console.log("Conexión exitosa a MongoDB"))
-    .catch(err => console.error("Error al conectar a MongoDB:", err));
+  .then(() => console.log("Conexión exitosa a MongoDB"))
+  .catch(err => console.error("Error al conectar a MongoDB:", err));
 
 // Configuración de Nodemailer para enviar correos electrónicos
 const transporter = nodemailer.createTransport({

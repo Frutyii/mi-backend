@@ -20,7 +20,8 @@
     "mongoose": "^8.9.2",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.16",
-    "passport": "^0.7.0"
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0"
   },
   "devDependencies": {
     "cypress": "^13.17.0",

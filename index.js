@@ -1,4 +1,4 @@
-// Importación de módulos necesarios
+/// Importación de módulos necesarios
 const express = require('express');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
@@ -15,6 +15,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const Joi = require('joi');
 const socketIo = require('socket.io');
+const session = require('express-session'); // Nuevo: Middleware para sesiones
 require('dotenv').config(); // Asegurar carga de variables de entorno
 
 // Inicialización
@@ -22,13 +23,21 @@ const app = express();
 const PORT = process.env.PORT || 3000; // Puerto dinámico para Render
 const SECRET = process.env.JWT_SECRET || 'defaultSecret';
 
+// Middleware de sesión
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'defaultSecret',
+    resave: false, // No guardar sesión si no hubo cambios
+    saveUninitialized: true, // Guardar sesiones vacías
+    cookie: { secure: false } // Cambiar a true si usas HTTPS
+}));
+
 // Middleware
 app.use(bodyParser.json());
 app.use(cors({
     origin: process.env.CORS_ORIGIN
 }));
 app.use(passport.initialize());
-app.use(passport.session());
+app.use(passport.session()); // Habilitar soporte de sesiones en Passport
 app.use(helmet());
 
 // Límite de tasa para proteger contra ataques de fuerza bruta
@@ -84,10 +93,8 @@ const authenticate = (req, res, next) => {
 
 // Conexión a MongoDB
 mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
+    serverSelectionTimeoutMS: 5000, // Tiempo de espera para encontrar el servidor
+    socketTimeoutMS: 45000 // Tiempo máximo de comunicación
 })
     .then(() => console.log("Conexión exitosa a MongoDB"))
     .catch(err => console.error("Error al conectar a MongoDB:", err));

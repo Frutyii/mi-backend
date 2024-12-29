@@ -15,7 +15,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const Joi = require('joi');
 const socketIo = require('socket.io');
-require('dotenv').config();
+require('dotenv').config(); // Asegurar carga de variables de entorno
 
 // Inicialización
 const app = express();
@@ -83,7 +83,9 @@ const authenticate = (req, res, next) => {
 };
 
 // Conexión a MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
+mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
 })
@@ -106,7 +108,7 @@ const transporter = nodemailer.createTransport({
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: 'http://localhost:3000/auth/google/callback'
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/auth/google/callback'
 }, async (token, tokenSecret, profile, done) => {
     try {
         let user = await User.findOne({ googleId: profile.id });
@@ -171,6 +173,19 @@ app.get('/api/perfil', authenticate, async (req, res) => {
         console.error("Error al cargar el perfil:", error);
         res.status(500).json({ error: 'Error al cargar el perfil.' });
     }
+});
+
+// Ruta de autenticación con Google
+app.get('/auth/google', passport.authenticate('google', {
+    scope: ['profile', 'email']
+}));
+
+app.get('/auth/google/callback', passport.authenticate('google', {
+    failureRedirect: '/login',
+    session: false
+}), (req, res) => {
+    const token = jwt.sign({ id: req.user.id }, SECRET, { expiresIn: '1h' });
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/?token=${token}`);
 });
 
 // Ruta de ejemplo

@@ -19,7 +19,7 @@ require('dotenv').config(); // Asegurar carga de variables de entorno
 
 // Inicialización
 const app = express();
-const PORT = process.env.PORT || 3000; // Puerto dinámico para Render
+const PORT = process.env.PORT || 10000; // Puerto dinámico para Render
 const SECRET = process.env.JWT_SECRET || 'defaultSecret';
 
 // Middleware
@@ -108,7 +108,7 @@ const transporter = nodemailer.createTransport({
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/auth/google/callback'
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:10000/auth/google/callback'
 }, async (token, tokenSecret, profile, done) => {
     try {
         let user = await User.findOne({ googleId: profile.id });
@@ -185,7 +185,7 @@ app.get('/auth/google/callback', passport.authenticate('google', {
     session: false
 }), (req, res) => {
     const token = jwt.sign({ id: req.user.id }, SECRET, { expiresIn: '1h' });
-    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/?token=${token}`);
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:10000'}/?token=${token}`);
 });
 
 // Ruta de ejemplo

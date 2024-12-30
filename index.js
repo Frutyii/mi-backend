@@ -27,9 +27,23 @@ app.use(bodyParser.json());
 app.use(cors({
     origin: process.env.CORS_ORIGIN
 }));
+
+const session = require('express-session'); // Importar express-session
+
+// Configuración del middleware de sesión
+app.use(
+    session({
+        secret: process.env.SESSION_SECRET || 'defaultSessionSecret', // Usar la clave secreta para sesiones
+        resave: false,
+        saveUninitialized: false,
+        cookie: { secure: false } // Cambiar a true si usas HTTPS
+    })
+);
+
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(helmet());
+
 
 // Límite de tasa para proteger contra ataques de fuerza bruta
 const limiter = rateLimit({
